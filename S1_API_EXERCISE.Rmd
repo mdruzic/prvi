@@ -1,0 +1,88 @@
+# API
+
+## Exercise 1
+
+Using the Github or similar API, find an endpoint in the documentation that
+doesn't require authentication and use Postman to run 2-3 simple GET queries.
+
+## Exercise 2
+
+Find and signup to an API service, this could be one listed in the slides or
+any other API you can find. Take a look at the documentation and see if you
+can authenticate via Oauth using the example R code provided in the slides and
+the documentation for the `httr` package.
+
+You can access the documentation by running `?httr` from any R console.
+
+If the API you find doesn't require authentication, try running a simple
+GET query using `httr`. I you aren't sure, mock the query first using
+postman.
+
+### Example GET request
+
+```{r}
+library(httr)
+
+response <- httr::GET("https://api.github.com/users/raymanns/starred")
+
+status_code(response)
+
+# headers(response)
+
+data <- content(response)
+
+for (value in data[0:5]) {
+    print(value$name)
+}
+```
+
+### Example OAuth 2.0 using client credentials
+
+```{r}
+library(httr)
+
+# Get secrets, set this in ~/.Renviron file
+clientID <- Sys.getenv("SPOTIFY_CLIENT_ID")
+clientSecret <- Sys.getenv("SPOTIFY_CLIENT_SECRET")
+
+# OAuth is a common authentication strategy
+myapp <- httr::oauth_app("test", clientID, clientSecret)
+authEndpoint <-
+    httr::oauth_endpoint(authorize = "https://accounts.spotify.com/authorize",
+                         access = "https://accounts.spotify.com/api/token")
+
+r <- httr::oauth2.0_access_token(authEndpoint, 
+                                 myapp,
+                                 code = NULL,
+                                 use_basic_auth = TRUE, 
+                                 client_credentials = TRUE)
+
+accessToken <- r$access_token
+print(accessToken)
+```
+
+### Example GET request with query string
+
+```{r}
+library(httr)
+
+# Search
+searchEndpoint <- "https://api.spotify.com/v1/search"
+
+search <- httr::GET(searchEndpoint,
+                    query = list(q="Muse",
+                                 type="artist,track",
+                                 limit=5),
+                    encode = "json",
+                    httr::add_headers(Authorization = paste("Bearer",
+                                                            accessToken)))
+
+print(search$request$url)
+
+results <- content(search, "parsed", encoding = "UTF-8")
+
+for (item in results$artists$items) {
+    print(paste(item$name, "-", item$followers$total))
+}
+```
+
